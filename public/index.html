@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<title>歌曲时长计算器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+.topbar{background:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e8e8e8;box-shadow:0 1px 4px rgba(0,0,0,0.06);position:sticky;top:0;z-index:10}
+.topbar h1{font-size:18px;color:#1a1a2e;white-space:nowrap}
+.topbar .sep{flex:1}
+.topbar select,.topbar button{padding:6px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;background:#fff;cursor:pointer}
+.topbar button{background:#1677ff;color:#fff;border-color:#1677ff}
+.topbar button.danger{background:#ff4d4f;border-color:#ff4d4f}
+.topbar button.ghost{background:#fff;color:#1677ff;border:1px dashed #1677ff}
+.topbar select:hover,.topbar button:hover{opacity:.85}
+.main{display:flex;height:calc(100vh - 55px);overflow:hidden}
+.left{flex:0 0 55%;display:flex;flex-direction:column;border-right:1px solid #e8e8e8;background:#fff}
+.right{flex:1;display:flex;flex-direction:column;background:#fafafa}
+.tabs{display:flex;border-bottom:2px solid #f0f0f0;padding:0 16px;gap:0;flex-shrink:0;position:relative;z-index:10;background:#fff}
+.tab{padding:10px 20px;cursor:pointer;font-size:14px;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab:hover{color:#1677ff}
+.tab.active{color:#1677ff;border-bottom-color:#1677ff;font-weight:500}
+.panel{flex:1;overflow-y:auto;padding:16px;display:none;background:#fff}
+.panel.active{display:block}
+.search-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.search-row input{flex:1;min-width:80px;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px}
+.search-row input:focus{outline:none;border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.1)}
+.search-row input.field-song{flex:2}
+.search-row .field-artist{flex:1.5}
+.search-row button{padding:8px 16px;background:#1677ff;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap}
+.search-hint{font-size:11px;color:#999;margin-bottom:12px;margin-top:-8px}
+.search-sticky{position:sticky;top:-16px;background:#fff;z-index:10;padding:4px 0 2px;margin:-16px 0 0}
+.source-toggle{display:flex;gap:0;margin-bottom:12px;background:#f5f5f5;border-radius:6px;padding:2px;width:fit-content}
+.source-toggle span{padding:4px 12px;border-radius:5px;font-size:12px;cursor:pointer;transition:all .2s}
+.source-toggle span.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.result-item{display:flex;align-items:center;padding:8px 12px;border:1px solid #f0f0f0;border-radius:6px;margin-bottom:6px;gap:10px;transition:background .15s}
+.result-item:hover{background:#fafafa}
+.result-info{flex:1;min-width:0}
+.result-info .name{font-size:14px;font-weight:500}
+.result-info .meta{font-size:12px;color:#888;margin-top:2px}
+.result-info .dur{font-size:12px;color:#1677ff;font-weight:500;margin-left:8px}
+.result-item button.addBtn{padding:4px 12px;background:#1677ff;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;flex-shrink:0}
+.result-item button.addBtn:hover{opacity:.85}
+.batch-textarea{width:100%;height:180px;padding:10px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;font-family:inherit;margin-bottom:12px}
+.batch-row{display:flex;gap:8px;margin-bottom:16px;align-items:center}
+.csv-upload{position:relative}
+.csv-upload input[type=file]{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;left:0;top:0}
+.csv-upload button{padding:6px 12px;border:1px dashed #1677ff;border-radius:6px;color:#1677ff;background:transparent;font-size:13px;cursor:pointer}
+.batch-result{margin-top:12px}
+.batch-song{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-bottom:10px}
+.batch-song h4{font-size:14px;margin-bottom:8px;color:#333}
+.batch-version{display:flex;align-items:center;padding:4px 0;gap:8px;font-size:13px;cursor:pointer}
+.batch-version input[type=radio]{accent-color:#1677ff}
+.pl-header{padding:14px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pl-header span{font-weight:500;font-size:14px}
+.pl-header .count{color:#888;font-size:12px}
+.pl-sort{padding:8px 16px;display:flex;gap:8px;align-items:center;font-size:12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;background:#fff}
+.pl-sort select{padding:3px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px}
+.pl-total{padding:8px 16px;font-size:13px;color:#1677ff;font-weight:500;background:#f0f5ff;border-bottom:1px solid #e0e8ff;flex-shrink:0}
+.pl-list{flex:1;overflow-y:auto;padding:8px}
+.song-row{display:flex;align-items:center;padding:8px 10px;background:#fff;border-radius:6px;margin-bottom:4px;gap:8px;transition:background .15s}
+.song-row:hover{background:#f5f8ff}
+.song-row .idx{color:#bbb;font-size:12px;width:20px;text-align:right;flex-shrink:0}
+.song-row .info{flex:1;min-width:0}
+.song-row .info .sn{font-size:13px;font-weight:500}
+.song-row .info .sa{font-size:11px;color:#888}
+.song-row .dur{font-size:12px;color:#1677ff;font-weight:500;width:42px;text-align:right;flex-shrink:0}
+.stars{display:flex;gap:2px;flex-shrink:0}
+.stars .star{cursor:pointer;font-size:14px;color:#d9d9d9;transition:color .1s;user-select:none}
+.stars .star.on{color:#faad14}
+.song-row .del{cursor:pointer;color:#ccc;font-size:14px;padding:2px 4px;flex-shrink:0}
+.song-row .del:hover{color:#ff4d4f}
+.song-row .drag-handle{cursor:grab;color:#bbb;font-size:18px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;user-select:none;line-height:1}
+.song-row .drag-handle:active{cursor:grabbing}
+.song-row.dragging{opacity:0.4}
+.song-row.drag-over{border-top:2px solid #1677ff}
+.export-section{margin-bottom:20px}
+.export-section h3{font-size:14px;margin-bottom:8px}
+.export-options{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.export-options label{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer}
+.export-options select,.export-options input{padding:5px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px}
+.export-preview{background:#f8f9fa;border:1px solid #e8e8e8;border-radius:6px;padding:12px;max-height:300px;overflow-y:auto;font-size:12px;white-space:pre-wrap;font-family:Consolas,monospace}
+.export-preview .total{color:#1677ff;font-weight:500}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:10px;padding:24px;min-width:400px;max-width:500px;box-shadow:0 4px 20px rgba(0,0,0,0.15)}
+.modal h3{margin-bottom:16px;font-size:16px}
+.modal input{width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:14px;margin-bottom:16px}
+.modal input:focus{outline:none;border-color:#1677ff}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btns button{padding:6px 16px;border-radius:6px;border:1px solid #d9d9d9;font-size:13px;cursor:pointer;background:#fff}
+.modal-btns button.primary{background:#1677ff;color:#fff;border-color:#1677ff}
+.empty{text-align:center;color:#bbb;padding:40px 20px;font-size:14px}
+.loading{text-align:center;color:#888;padding:20px}
+.tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;margin-left:4px;font-weight:500}
+.tag.ne{background:#e6f4ff;color:#1890ff}
+.tag.qq{background:#f6ffed;color:#52c41a}
+/* KTV */
+.ktv-mode-toggle{display:flex;gap:0;margin-bottom:12px;background:#f5f5f5;border-radius:6px;padding:2px;width:fit-content}
+.ktv-mode-toggle span{padding:4px 14px;border-radius:5px;font-size:12px;cursor:pointer;transition:all .2s}
+.ktv-mode-toggle span.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.ktv-card{position:relative;background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.ktv-card:hover{border-color:#1677ff;box-shadow:0 2px 8px rgba(22,119,255,0.1)}
+.ktv-card.selected{border-color:#1677ff;background:#f0f5ff}
+.ktv-card .ktv-name{font-size:14px;font-weight:500}
+.ktv-card .ktv-addr{font-size:11px;color:#888;margin-top:2px}
+.ktv-card .ktv-meta{font-size:11px;color:#888;margin-top:2px}
+.ktv-card .ktv-stats{font-size:12px;color:#1677ff;font-weight:500;margin-top:4px}
+.ktv-card .ktv-del{position:absolute;top:6px;right:8px;cursor:pointer;color:#ccc;font-size:14px}
+.ktv-card .ktv-del:hover{color:#ff4d4f}
+.ktv-song-row{display:flex;align-items:center;padding:6px 8px;gap:8px;font-size:13px;border-bottom:1px solid #f5f5f5}
+.ktv-song-row:last-child{border-bottom:none}
+.ktv-song-row input[type=checkbox]{accent-color:#1677ff;width:16px;height:16px;cursor:pointer;flex-shrink:0}
+.ktv-song-row .info{flex:1;min-width:0}
+.ktv-song-row .dur{font-size:12px;color:#1677ff;flex-shrink:0}
+.ktv-summary{padding:10px 12px;background:#f0f5ff;border-radius:6px;font-size:13px;color:#1677ff;font-weight:500;margin-bottom:12px}
+.ktv-section{margin-bottom:16px}
+.ktv-section h4{font-size:13px;margin-bottom:6px;font-weight:500}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>歌曲时长计算器</h1>
+  <select id="playlistSelect" style="min-width:160px"><option value="">-- 选择歌单 --</option></select>
+  <button class="ghost" id="createPlBtn">+ 新建歌单</button>
+  <button class="danger" id="delPlaylistBtn" style="display:none">删除歌单</button>
+  <span style="color:#ccc;font-size:14px">|</span>
+  <select id="ktvSelect" style="min-width:140px"><option value="">-- KTV --</option></select>
+  <button class="danger" id="delKtvBtn" style="display:none">删除KTV</button>
+  <button class="ghost" id="ktvManageBtn">管理</button>
+  <span class="sep"></span>
+  <button id="exportAllBtn" style="background:#52c41a;border-color:#52c41a">一键导出全部</button>
+  <button class="danger" id="resetAllBtn">重置</button>
+</div>
+<div class="main">
+  <div class="left">
+    <div class="tabs">
+      <div class="tab active" data-tab="search">搜索歌曲</div>
+      <div class="tab" data-tab="batch">歌单导入</div>
+      <div class="tab" data-tab="export">导出歌单</div>
+      <div class="tab" data-tab="ktv">KTV</div>
+    </div>
+    <div class="panel active" id="panel-search">
+      <div class="search-sticky">
+      <div class="source-toggle" id="sourceToggle">
+        <span class="active" data-src="netease">网易云音乐</span>
+        <span data-src="qq">QQ 音乐</span>
+      </div>
+      <div class="search-row">
+        <input id="searchSong" placeholder="歌名（可选）" class="field-song" onkeydown="if(event.key==='Enter')doSearch()">
+        <input id="searchArtist" placeholder="歌手（可选）" class="field-artist" onkeydown="if(event.key==='Enter')doSearch()">
+        <input id="searchAlbum" placeholder="专辑（可选）" onkeydown="if(event.key==='Enter')doSearch()">
+        <button id="searchBtn">搜索</button>
+      </div>
+      <div class="search-hint">任一字段可留空，组合搜索更精准</div>
+      </div>
+      <div id="searchResults"></div>
+    </div>
+    <div class="panel" id="panel-batch">
+      <div class="ktv-section">
+        <h4>导入在线歌单 <span style="font-weight:400;color:#888;font-size:11px">（网易云/QQ音乐链接或ID，需为公开歌单）</span></h4>
+        <div class="source-toggle" style="margin-bottom:8px">
+          <span class="active" onclick="setImportSource('netease',this)">网易云音乐</span>
+          <span onclick="setImportSource('qq',this)">QQ 音乐</span>
+        </div>
+        <div class="search-row">
+          <input id="importUrl" placeholder="歌单链接或ID" style="flex:1" onkeydown="if(event.key==='Enter')doImportPlaylist()">
+          <button id="importBtn" style="padding:8px 16px;background:#1677ff;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">获取歌单</button>
+        </div>
+        <div id="importResults"></div>
+        <div id="importActions" style="display:none;margin-top:8px;gap:8px">
+          <button onclick="importSelectAll()" style="padding:4px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;background:#fff;cursor:pointer">全选</button>
+          <button onclick="importSelectNone()" style="padding:4px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;background:#fff;cursor:pointer">全不选</button>
+          <button onclick="importAddSelected()" style="padding:4px 12px;background:#1677ff;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">添加选中到当前歌单</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid #eee;margin:12px 0"></div>
+      <h3 style="font-size:14px;margin-bottom:8px">手动输入歌名，用 | 分隔：歌名 | 歌手 | 专辑（都可选填）</h3>
+      <textarea class="batch-textarea" id="batchInput" placeholder="七里香 | 周杰伦 | 七里香&#10;稻香 | 周杰伦&#10;晴天&#10;告白气球 | &#10;..."></textarea>
+      <div class="batch-row">
+        <button id="batchSearchBtn" style="padding:6px 14px;background:#1677ff;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">批量搜索</button>
+        <span class="csv-upload"><button style="padding:6px 12px;border:1px dashed #1677ff;border-radius:6px;color:#1677ff;background:transparent;font-size:13px;cursor:pointer">CSV文件导入</button><input type="file" accept=".csv" id="csvFileInput"></span>
+        <span style="font-size:12px;color:#888">CSV列：歌名,歌手,专辑（后两列可选）</span>
+      </div>
+      <div class="batch-row" id="batchActions" style="display:none">
+        <button id="batchAddBtn" style="padding:6px 14px;background:#1677ff;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">添加到当前歌单</button>
+      </div>
+      <div id="batchResults"></div>
+    </div>
+    <div class="panel" id="panel-export">
+      <div class="export-section">
+        <h3>导出选项</h3>
+        <div class="export-options">
+          <label>歌单：<select id="exportPlaylist"><option value="">全部歌单</option></select></label>
+          <label>等级：<select id="exportLevel">
+            <option value="0">全部等级</option><option value="5">5★</option><option value="4">4★</option><option value="3">3★</option><option value="2">2★</option><option value="1">1★</option>
+          </select></label>
+          <label>格式：<select id="exportFormat">
+            <option value="text">纯文本列表</option><option value="csv">CSV表格</option>
+          </select></label>
+          <label>KTV：<select id="exportKtv"><option value="">忽略KTV</option></select></label>
+        </div>
+        <button id="exportBtn" style="margin-bottom:12px;padding:6px 16px;background:#1677ff;color:#fff;border:none;border-radius:6px;cursor:pointer">导出下载</button>
+        <div class="export-preview" id="exportPreview">请先选择导出条件</div>
+      </div>
+    </div>
+    <div class="panel" id="panel-ktv">
+      <div class="ktv-mode-toggle">
+        <span class="active" onclick="setKtvMode('search',this)">搜索KTV</span>
+        <span onclick="setKtvMode('manual',this)">手动添加</span>
+      </div>
+      <div id="ktvModeSearch">
+        <div class="search-row">
+          <input id="ktvCity" placeholder="城市（如：杭州）" style="flex:1" onkeydown="if(event.key==='Enter')doKtvSearch()">
+          <input id="ktvKeywords" placeholder="关键词（如：银乐迪）" style="flex:1.5" onkeydown="if(event.key==='Enter')doKtvSearch()">
+          <button id="ktvSearchBtn">搜索</button>
+        </div>
+        <div id="ktvSearchResults"></div>
+      </div>
+      <div id="ktvModeManual" style="display:none">
+        <div class="search-row">
+          <input id="ktvManName" placeholder="KTV名称" style="flex:1.5">
+          <input id="ktvManPhone" placeholder="电话（可选）" style="flex:1">
+        </div>
+        <div class="search-row">
+          <input id="ktvManAddr" placeholder="地址（可选）" style="flex:1">
+          <button onclick="saveManualKtv()">保存</button>
+        </div>
+        <div class="search-hint">至少填写名称，地址和电话选填</div>
+      </div>
+      <div class="ktv-section" style="margin-top:8px">
+        <h4>已保存的KTV <span style="font-weight:400;color:#888;font-size:12px" id="ktvSavedCount"></span></h4>
+        <div id="ktvSavedList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="pl-header">
+      <span id="plName">请选择或创建歌单</span>
+      <span class="count" id="plCount"></span>
+    </div>
+    <div class="pl-sort">
+      排序：<select id="plSort"><option value="">默认</option><option value="level">按等级↓</option><option value="name">按歌名</option><option value="duration">按时长</option></select>
+    </div>
+    <div class="pl-total" id="plTotal"></div>
+    <div class="pl-list" id="plSongs"><div class="empty">请先创建或选择一个歌单</div></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal">
+    <h3 id="modalTitle">新建歌单</h3>
+    <input id="modalInput" placeholder="歌单名称">
+    <div class="modal-btns">
+      <button id="modalCancel">取消</button>
+      <button class="primary" id="modalConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ST = { source: 'netease', currentPlaylistId: null, tab: 'search' };
+let appData = { playlists: [], unsorted: { songs: [] } };
+
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  return res.json();
+}
+
+function fmtDuration(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function hms(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  let r = ''; if (h > 0) r += h + '时'; if (m > 0 || h > 0) r += m + '分'; r += s + '秒'; return r;
+}
+
+function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+async function loadData() {
+  const [plRes, unRes] = await Promise.all([
+    api('/api/playlists'),
+    api('/api/unsorted')
+  ]);
+  appData.playlists = plRes.playlists || [];
+  appData.unsorted = unRes || { songs: [] };
+  if (appData.playlists.length > 0 && !ST.currentPlaylistId) {
+    ST.currentPlaylistId = appData.playlists[0].id;
+  }
+  await syncCurrentPlaylist();
+}
+
+async function syncCurrentPlaylist() {
+  if (!ST.currentPlaylistId) return;
+  const detail = await api(`/api/playlists/${ST.currentPlaylistId}`);
+  const idx = appData.playlists.findIndex(p => p.id === ST.currentPlaylistId);
+  if (idx >= 0) appData.playlists[idx] = detail;
+  else appData.playlists.push(detail);
+  renderPlaylistSelect();
+  renderRightPanel();
+}
+
+function renderPlaylistSelect() {
+  const sel = document.getElementById('playlistSelect');
+  const exportSel = document.getElementById('exportPlaylist');
+  sel.innerHTML = '<option value="">-- 选择歌单 --</option>';
+  exportSel.innerHTML = '<option value="">全部歌单</option>';
+  appData.playlists.forEach(p => {
+    const count = (p.songs && p.songs.length) ?? p.songCount ?? 0;
+    sel.innerHTML += `<option value="${p.id}">${esc(p.name)} (${count}首)</option>`;
+    exportSel.innerHTML += `<option value="${p.id}">${esc(p.name)}</option>`;
+  });
+  if (ST.currentPlaylistId) sel.value = ST.currentPlaylistId;
+}
+
+function renderRightPanel() {
+  const pl = appData.playlists.find(p => p.id === ST.currentPlaylistId);
+  const songs = (pl && pl.songs) || [];
+  document.getElementById('plName').textContent = pl ? pl.name : '请选择或创建歌单';
+  document.getElementById('plCount').textContent = pl ? `共 ${songs.length} 首` : '';
+  document.getElementById('delPlaylistBtn').style.display = pl ? '' : 'none';
+  const total = songs.reduce((s, x) => s + x.durationSec, 0);
+  document.getElementById('plTotal').textContent = pl ? `总计时长: ${hms(total)}` : '';
+  const list = document.getElementById('plSongs');
+  if (!pl || songs.length === 0) {
+    list.innerHTML = '<div class="empty">' + (pl ? '歌单暂无歌曲，搜索并添加吧' : '请先创建或选择一个歌单') + '</div>';
+  } else {
+    const ktv = ST.selectedKtvId ? appKtvs.find(k => k.id === ST.selectedKtvId) : null;
+    const avail = ktv ? (ktv.availability && ktv.availability[ST.currentPlaylistId]) || {} : {};
+    const availableCount = songs.filter(s => avail[s.id] !== false).length;
+    document.getElementById('plCount').textContent = pl ? `共 ${songs.length} 首${ktv ? ' (可用'+availableCount+'首)' : ''}` : '';
+    list.innerHTML = songs.map((s, i) => {
+      const isAvail = avail[s.id] !== false;
+      const rowStyle = isAvail ? '' : 'opacity:0.45';
+      const hist = ktv ? ((ktv.songHistory && ktv.songHistory[s.id]) || {}) : {};
+      const records = hist.records || [];
+      const sungCount = records.length;
+      const lastSung = records.length > 0 ? new Date(records[records.length - 1]).toLocaleDateString('zh-CN') : '';
+      const ktvBtns = ktv ? `
+        <button style="font-size:10px;padding:2px 6px;border:1px solid #d9d9d9;border-radius:3px;background:${isAvail?'#fff':'#fff1f0'};color:${isAvail?'#888':'#ff4d4f'};cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();toggleKtvSongRow('${s.id}',${isAvail})">${isAvail?'不可用':'可用'}</button>
+        <button style="font-size:10px;padding:2px 6px;border:1px solid ${sungCount>0?'#52c41a':'#d9d9d9'};border-radius:3px;background:${sungCount>0?'#f6ffed':'#fff'};color:${sungCount>0?'#52c41a':'#888'};cursor:pointer;flex-shrink:0;white-space:nowrap" onclick="event.stopPropagation();markSung('${s.id}')" oncontextmenu="event.preventDefault();event.stopPropagation();markSung('${s.id}',true)" title="${lastSung ? '上次: '+lastSung : '未唱过'}">🎤${sungCount||''}</button>
+      ` : '';
+      return `
+        <div class="song-row" style="${rowStyle}">
+          <span class="drag-handle" draggable="true" data-song-id="${s.id}" data-idx="${i}" title="拖拽排序">⋮⋮</span>
+          <span class="idx">${i+1}</span>
+          <div class="info"><div class="sn">${esc(s.name)} <span class="tag ${s.source==='qq'?'qq':'ne'}">${s.source==='qq'?'QQ':'网易'}</span></div><div class="sa">${esc(s.artist)} ${esc(s.album||'')}</div></div>
+          <span class="dur">${fmtDuration(s.durationSec)}</span>
+          <div class="stars" data-song-id="${s.id}">${[1,2,3,4,5].map(lv => `<span class="star${(s.wantLevel||1)>=lv?' on':''}" data-level="${lv}">★</span>`).join('')}</div>
+          ${ktvBtns}
+          <span class="del" data-song-id="${s.id}" title="删除">✕</span>
+        </div>`;
+    }).join('');
+  }
+  if (ST.selectedKtvId) { renderKtvList(); }
+}
+
+function switchTab(tab) {
+  ST.tab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+  if (tab === 'export') { populateExportKtv(); renderPlaylistSelect(); previewExport(); }
+}
+
+// --- Playlist CRUD ---
+async function createPlaylist() {
+  const name = prompt('请输入歌单名称:');
+  if (!name || !name.trim()) return;
+  await api('/api/playlists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) });
+  await loadData();
+  if (appData.playlists.length > 0) { ST.currentPlaylistId = appData.playlists[appData.playlists.length - 1].id; renderPlaylistSelect(); renderRightPanel(); }
+}
+
+async function deletePlaylist() {
+  if (!ST.currentPlaylistId) return;
+  const pl = appData.playlists.find(p => p.id === ST.currentPlaylistId);
+  if (!pl) return;
+  if (!confirm(`确定删除歌单「${pl.name}」？(${pl.songs.length}首歌曲将被删除)`)) return;
+  await api(`/api/playlists/${ST.currentPlaylistId}`, { method: 'DELETE' });
+  ST.currentPlaylistId = null;
+  await loadData();
+  if (appData.playlists.length > 0) ST.currentPlaylistId = appData.playlists[0].id;
+  renderRightPanel();
+}
+
+async function addSong(song) {
+  if (!ST.currentPlaylistId) {
+    await createPlaylist();
+    if (!ST.currentPlaylistId) return;
+  }
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add', songs: [{ id: song.id, name: song.name, artist: song.artist, album: song.album, durationSec: song.durationSec, source: song.source }] })
+  });
+  await loadData();
+}
+
+async function removeSong(songId, plId) {
+  await api(`/api/playlists/${plId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'remove', songIds: [songId] })
+  });
+  await loadData();
+}
+
+async function setLevel(songId, level) {
+  if (!ST.currentPlaylistId) return;
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'updateLevel', songId, wantLevel: level })
+  });
+  await loadData();
+}
+
+async function sortPlaylist(by) {
+  if (!ST.currentPlaylistId || !by) return;
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'sort', by })
+  });
+  await loadData();
+}
+
+// --- Search ---
+const searchState = { query: '', source: '', page: 1, limit: 20, hasMore: false, loading: false, total: 0 };
+
+function buildSearchQuery() {
+  const parts = [
+    document.getElementById('searchSong').value.trim(),
+    document.getElementById('searchArtist').value.trim(),
+    document.getElementById('searchAlbum').value.trim()
+  ].filter(Boolean);
+  return parts.join(' ');
+}
+
+function renderSongItem(s) {
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+  return `
+    <div class="result-item">
+      <div class="result-info">
+        <div class="name">${esc(s.name)} <span class="tag ${s.source==='qq'?'qq':'ne'}">${s.source==='qq'?'QQ':'网易'}</span></div>
+        <div class="meta">${esc(s.artist)} · ${esc(s.album||'')} <span class="dur">${fmtDuration(s.durationSec)}</span></div>
+      </div>
+      <button class="addBtn" data-song="${encoded}">+ 添加</button>
+    </div>`;
+}
+
+async function doSearch(resetPage) {
+  const q = buildSearchQuery();
+  if (!q) return;
+  if (resetPage !== false) {
+    searchState.query = q;
+    searchState.source = ST.source;
+    searchState.page = 1;
+    searchState.hasMore = false;
+    searchState.loading = false;
+    document.getElementById('searchResults').innerHTML = '<div class="loading">搜索中...</div>';
+  }
+  const container = document.getElementById('searchResults');
+  searchState.loading = true;
+  try {
+    const data = await api(`/api/search?q=${encodeURIComponent(q)}&source=${ST.source}&page=${searchState.page}&limit=${searchState.limit}`);
+    searchState.loading = false;
+    if (data.error) {
+      if (searchState.page === 1) container.innerHTML = `<div class="empty">${esc(data.error)}</div>`;
+      return;
+    }
+    searchState.hasMore = data.hasMore || false;
+    searchState.total = data.total || 0;
+    if (!data.songs || data.songs.length === 0) {
+      if (searchState.page === 1) container.innerHTML = '<div class="empty">未找到结果，试试切换音乐平台</div>';
+      return;
+    }
+    let html = '';
+    if (searchState.page === 1) {
+      html = data.songs.map(renderSongItem).join('');
+      if (searchState.hasMore) html += '<div class="loading" id="loadMoreSentinel">滚动加载更多...</div>';
+    } else {
+      const sentinel = document.getElementById('loadMoreSentinel');
+      if (sentinel) sentinel.remove();
+      html = data.songs.map(renderSongItem).join('');
+      if (searchState.hasMore) html += '<div class="loading" id="loadMoreSentinel">滚动加载更多...</div>';
+      container.insertAdjacentHTML('beforeend', html);
+      return;
+    }
+    container.innerHTML = html;
+  } catch(e) {
+    searchState.loading = false;
+    if (searchState.page === 1) container.innerHTML = `<div class="empty">搜索失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function loadMoreSearch() {
+  if (searchState.loading || !searchState.hasMore) return;
+  searchState.page++;
+  doSearch(false);
+}
+
+// Search results event delegation
+document.getElementById('searchResults').addEventListener('click', function(e) {
+  const btn = e.target.closest('.addBtn');
+  if (!btn) return;
+  const encoded = btn.dataset.song;
+  if (!encoded) return;
+  const song = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  addSong(song);
+});
+
+// --- Batch ---
+let batchResultsData = {};
+
+// --- Playlist Import ---
+let importSource = 'netease';
+let importSongs = [];
+
+function setImportSource(src, el) {
+  importSource = src;
+  document.querySelectorAll('#panel-batch .source-toggle span').forEach(s => s.classList.toggle('active', s === el));
+}
+
+async function doImportPlaylist() {
+  const url = document.getElementById('importUrl').value.trim();
+  if (!url) return;
+  const container = document.getElementById('importResults');
+  container.innerHTML = '<div class="loading">获取歌单中...</div>';
+  document.getElementById('importActions').style.display = 'none';
+  try {
+    const data = await api(`/api/playlist/import?url=${encodeURIComponent(url)}&source=${importSource}`);
+    if (data.error) { container.innerHTML = `<div class="empty">${esc(data.error)}</div>`; return; }
+    if (!data.songs || data.songs.length === 0) {
+      container.innerHTML = '<div class="empty">歌单中没有歌曲</div>';
+      return;
+    }
+    importSongs = data.songs;
+    container.innerHTML = `<div style="font-size:13px;margin-bottom:6px">歌单「${esc(data.name)}」共 ${data.songs.length} 首:</div>` +
+      data.songs.map((s, i) => `<div class="ktv-song-row">
+        <input type="checkbox" checked data-idx="${i}">
+        <div class="info">${esc(s.name)} - ${esc(s.artist)} ${s.album?esc(s.album):''}</div>
+        <span class="dur">${fmtDuration(s.durationSec)}</span>
+        <span class="tag ${s.source==='qq'?'qq':'ne'}">${s.source==='qq'?'QQ':'网易'}</span>
+      </div>`).join('');
+    document.getElementById('importActions').style.display = 'flex';
+  } catch(e) {
+    container.innerHTML = `<div class="empty">导入失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function importSelectAll() {
+  document.querySelectorAll('#importResults input[type=checkbox]').forEach(c => c.checked = true);
+}
+function importSelectNone() {
+  document.querySelectorAll('#importResults input[type=checkbox]').forEach(c => c.checked = false);
+}
+async function importAddSelected() {
+  if (!ST.currentPlaylistId) {
+    await createPlaylist();
+    if (!ST.currentPlaylistId) return;
+  }
+  const songs = [];
+  document.querySelectorAll('#importResults input[type=checkbox]:checked').forEach(c => {
+    const idx = parseInt(c.dataset.idx);
+    if (idx >= 0 && idx < importSongs.length) songs.push(importSongs[idx]);
+  });
+  if (songs.length === 0) return;
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add', songs })
+  });
+  await loadData();
+  alert(`已添加 ${songs.length} 首歌曲到歌单`);
+}
+
+function parseLine(line) {
+  const sep = line.includes('|') ? '|' : line.includes(',') ? ',' : null;
+  if (!sep) return { raw: line.trim(), display: line.trim(), query: line.trim() };
+  const parts = line.split(sep).map(p => p.trim());
+  const query = parts.filter(Boolean).join(' ');
+  return { raw: line.trim(), display: parts[0] || line.trim(), query: query || line.trim() };
+}
+
+let batchKeywords = [];
+
+async function doBatchSearch() {
+  const text = document.getElementById('batchInput').value.trim();
+  if (!text) return;
+  batchKeywords = text.split(/[\n\r]+/).map(parseLine).filter(l => l.query);
+  if (batchKeywords.length === 0) return;
+  const container = document.getElementById('batchResults');
+  container.innerHTML = '<div class="loading">批量搜索中，请稍候...</div>';
+  document.getElementById('batchActions').style.display = 'none';
+  try {
+    const data = await api('/api/search/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keywords: batchKeywords.map(k => k.query) })
+    });
+    batchResultsData = data.results || {};
+    let html = '';
+    for (const kw of batchKeywords) {
+      const r = batchResultsData[kw.query];
+      if (!r) continue;
+      const all = [...(r.netease||[]), ...(r.qq||[])];
+      html += `<div class="batch-song"><h4>${esc(kw.display)} <span style="font-weight:400;color:#999;font-size:12px">(搜索: ${esc(kw.query)})</span></h4>`;
+      if (all.length === 0) {
+        html += '<span style="color:#ff4d4f;font-size:12px">未找到结果</span>';
+      } else {
+        all.forEach((s, i) => {
+          const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+          html += `
+            <label class="batch-version">
+              <input type="radio" name="ver_${esc(kw.raw)}" value="${esc(s.id)}" data-song="${encoded}" ${i===0?'checked':''}>
+              ${esc(s.name)} - ${esc(s.artist)} ${esc(s.album||'')} ${fmtDuration(s.durationSec)} <span class="tag ${s.source==='qq'?'qq':'ne'}">${s.source==='qq'?'QQ':'网易'}</span>
+            </label>`;
+        });
+      }
+      html += '</div>';
+    }
+    container.innerHTML = html;
+    document.getElementById('batchActions').style.display = '';
+  } catch(e) {
+    container.innerHTML = `<div class="empty">批量搜索失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function handleCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split(/[\n\r]+/).filter(Boolean);
+    const parts = lines.map(l => {
+      const cols = l.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+      return cols.filter(Boolean).join(' | ');
+    }).filter(Boolean);
+    document.getElementById('batchInput').value = parts.join('\n');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function batchAddToPlaylist() {
+  if (!ST.currentPlaylistId) {
+    await createPlaylist();
+    if (!ST.currentPlaylistId) return;
+  }
+  const songs = [];
+  document.querySelectorAll('.batch-song').forEach(el => {
+    const radio = el.querySelector('input[type=radio]:checked');
+    if (!radio) return;
+    const encoded = radio.dataset.song;
+    if (!encoded) return;
+    try {
+      const s = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+      songs.push(s);
+    } catch(e) {}
+  });
+  if (songs.length === 0) { alert('没有可添加的歌曲'); return; }
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add', songs })
+  });
+  await loadData();
+  alert(`已添加 ${songs.length} 首歌曲到歌单`);
+}
+
+// --- Export ---
+function populateExportKtv() {
+  const sel = document.getElementById('exportKtv');
+  sel.innerHTML = '<option value="">忽略KTV</option>';
+  appKtvs.forEach(k => {
+    sel.innerHTML += `<option value="${k.id}">${esc(k.name)}</option>`;
+  });
+}
+
+async function previewExport() {
+  const plId = document.getElementById('exportPlaylist').value;
+  const level = parseInt(document.getElementById('exportLevel').value);
+  const format = document.getElementById('exportFormat').value;
+  const ktvId = document.getElementById('exportKtv').value;
+  let songs = [];
+  if (plId) {
+    const pl = appData.playlists.find(p => p.id === plId);
+    songs = ((pl && pl.songs) || []).map(s => ({ ...s, _plId: plId }));
+  } else {
+    appData.playlists.forEach(p => { songs = songs.concat((p.songs || []).map(s => ({ ...s, _plId: p.id }))); });
+  }
+  if (level > 0) songs = songs.filter(s => s.wantLevel === level);
+  if (ktvId) {
+    const ktv = appKtvs.find(k => k.id === ktvId);
+    if (ktv && songs.length > 0) {
+      songs = songs.filter(s => {
+        const avail = (ktv.availability && ktv.availability[s._plId]) || {};
+        return avail[s.id] !== false;
+      });
+    }
+  }
+  const total = songs.reduce((s, x) => s + x.durationSec, 0);
+  if (format === 'csv') {
+    const header = '歌名,歌手,专辑,时长(秒),时长,平台,想唱等级';
+    const rows = songs.map(s => `"${s.name}","${s.artist}","${s.album||''}",${s.durationSec},"${fmtDuration(s.durationSec)}",${s.source},${s.wantLevel||1}`);
+    document.getElementById('exportPreview').innerHTML = esc(header) + '\n' + rows.map(r => esc(r)).join('\n') + `\n\n<span class="total">总计: ${songs.length}首, ${hms(total)}</span>`;
+  } else {
+    const lines = songs.map((s, i) => `${i+1}. ${esc(s.name)} - ${esc(s.artist)}  ${fmtDuration(s.durationSec)}  [${'★'.repeat(s.wantLevel||1)}]`);
+    document.getElementById('exportPreview').innerHTML = lines.join('\n') + `\n\n<span class="total">总计: ${songs.length}首, ${hms(total)}</span>`;
+  }
+}
+
+function doExport() {
+  const plId = document.getElementById('exportPlaylist').value;
+  const level = document.getElementById('exportLevel').value;
+  const format = document.getElementById('exportFormat').value;
+  const ktvId = document.getElementById('exportKtv').value;
+  const params = new URLSearchParams();
+  if (plId) params.set('playlistId', plId);
+  if (level > 0) params.set('level', level);
+  params.set('format', format);
+  if (ktvId) params.set('ktvId', ktvId);
+  window.open('/api/export?' + params.toString(), '_blank');
+}
+
+// --- Modal ---
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+// --- Event bindings ---
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+['searchSong','searchArtist','searchAlbum'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+});
+document.getElementById('importBtn').addEventListener('click', doImportPlaylist);
+document.getElementById('importUrl').addEventListener('keydown', function(e) { if (e.key === 'Enter') doImportPlaylist(); });
+document.getElementById('batchSearchBtn').addEventListener('click', doBatchSearch);
+document.getElementById('csvFileInput').addEventListener('change', function() { handleCSV(this); });
+document.getElementById('batchAddBtn').addEventListener('click', batchAddToPlaylist);
+document.getElementById('createPlBtn').addEventListener('click', createPlaylist);
+document.getElementById('delPlaylistBtn').addEventListener('click', deletePlaylist);
+document.getElementById('exportBtn').addEventListener('click', doExport);
+document.getElementById('exportAllBtn').addEventListener('click', function() { window.open('/api/export', '_blank'); });
+document.getElementById('resetAllBtn').addEventListener('click', async function() {
+  if (!confirm('确定删除全部数据（歌单、KTV、已唱记录）？此操作不可恢复')) return;
+  await api('/api/reset', { method: 'POST' });
+  location.reload();
+});
+document.getElementById('exportPlaylist').addEventListener('change', previewExport);
+document.getElementById('exportLevel').addEventListener('change', previewExport);
+document.getElementById('exportFormat').addEventListener('change', previewExport);
+document.getElementById('exportKtv').addEventListener('change', previewExport);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('playlistSelect').addEventListener('change', function() {
+  ST.currentPlaylistId = this.value || null;
+  syncCurrentPlaylist();
+  previewExport();
+});
+document.getElementById('ktvSelect').addEventListener('change', function() {
+  ST.selectedKtvId = this.value || null;
+  document.getElementById('delKtvBtn').style.display = ST.selectedKtvId ? '' : 'none';
+  renderKtvList();
+  renderRightPanel();
+});
+document.getElementById('delKtvBtn').addEventListener('click', function() {
+  if (ST.selectedKtvId) deleteKtv(ST.selectedKtvId);
+});
+document.getElementById('ktvManageBtn').addEventListener('click', function() { switchTab('ktv'); });
+document.getElementById('plSort').addEventListener('change', function() { sortPlaylist(this.value); });
+document.getElementById('plSongs').addEventListener('click', function(e) {
+  const delBtn = e.target.closest('.del');
+  if (delBtn && ST.currentPlaylistId) {
+    removeSong(delBtn.dataset.songId, ST.currentPlaylistId);
+    return;
+  }
+  const starEl = e.target.closest('.star');
+  if (starEl && ST.currentPlaylistId) {
+    const starsDiv = starEl.parentElement;
+    const songId = starsDiv.dataset.songId;
+    const level = parseInt(starEl.dataset.level);
+    if (songId && level) setLevel(songId, level);
+  }
+});
+// Drag and drop reorder
+let dragSrcIdx = -1;
+document.getElementById('plSongs').addEventListener('dragstart', function(e) {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle) { e.preventDefault(); return; }
+  const row = handle.closest('.song-row');
+  if (!row) return;
+  dragSrcIdx = parseInt(handle.dataset.idx);
+  row.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', handle.dataset.songId || '');
+});
+document.getElementById('plSongs').addEventListener('dragend', function(e) {
+  document.querySelectorAll('#plSongs .song-row').forEach(r => r.classList.remove('dragging', 'drag-over'));
+  dragSrcIdx = -1;
+});
+document.getElementById('plSongs').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  const row = e.target.closest('.song-row');
+  if (!row || dragSrcIdx < 0) return;
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('#plSongs .song-row').forEach(r => r.classList.remove('drag-over'));
+  row.classList.add('drag-over');
+});
+document.getElementById('plSongs').addEventListener('drop', async function(e) {
+  e.preventDefault();
+  const row = e.target.closest('.song-row');
+  if (!row || dragSrcIdx < 0 || !ST.currentPlaylistId) return;
+  const destIdx = parseInt(row.querySelector('.drag-handle')?.dataset?.idx ?? -1);
+  if (destIdx < 0 || destIdx === dragSrcIdx) { dragSrcIdx = -1; return; }
+  const pl = appData.playlists.find(p => p.id === ST.currentPlaylistId);
+  if (!pl) return;
+  const songs = [...pl.songs];
+  const [moved] = songs.splice(dragSrcIdx, 1);
+  songs.splice(destIdx, 0, moved);
+  await api(`/api/playlists/${ST.currentPlaylistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reorder', songIds: songs.map(s => s.id) })
+  });
+  await loadData();
+});
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', function() { switchTab(this.dataset.tab); }));
+document.querySelectorAll('#sourceToggle span').forEach(s => s.addEventListener('click', function() {
+  ST.source = this.dataset.src;
+  document.querySelectorAll('#sourceToggle span').forEach(x => x.classList.remove('active'));
+  this.classList.add('active');
+}));
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+document.getElementById('panel-search').addEventListener('scroll', function() {
+  const panel = this;
+  if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 100) {
+    loadMoreSearch();
+  }
+});
+
+document.getElementById('ktvSearchBtn').addEventListener('click', doKtvSearch);
+document.getElementById('ktvKeywords').addEventListener('keydown', function(e) { if (e.key === 'Enter') doKtvSearch(); });
+document.getElementById('ktvCity').addEventListener('keydown', function(e) { if (e.key === 'Enter') doKtvSearch(); });
+document.getElementById('panel-ktv').addEventListener('scroll', function() {
+  if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
+    loadMoreKtv();
+  }
+});
+
+// --- KTV ---
+let appKtvs = [];
+let ktvMode = 'search';
+ST.selectedKtvId = null;
+const ktvSearchState = { city: '', keywords: '', page: 0, hasMore: false, loading: false };
+
+function renderKtvSelect() {
+  const sel = document.getElementById('ktvSelect');
+  sel.innerHTML = '<option value="">-- KTV --</option>';
+  appKtvs.forEach(k => {
+    sel.innerHTML += `<option value="${k.id}">${esc(k.name)}</option>`;
+  });
+  if (ST.selectedKtvId) sel.value = ST.selectedKtvId;
+  document.getElementById('delKtvBtn').style.display = ST.selectedKtvId ? '' : 'none';
+}
+
+function setKtvMode(mode, el) {
+  ktvMode = mode;
+  document.querySelectorAll('.ktv-mode-toggle span').forEach(s => s.classList.toggle('active', s === el));
+  document.getElementById('ktvModeSearch').style.display = mode === 'search' ? '' : 'none';
+  document.getElementById('ktvModeManual').style.display = mode === 'manual' ? '' : 'none';
+}
+
+async function loadKtvs() {
+  const res = await api('/api/ktv');
+  appKtvs = res.ktvs || [];
+  renderKtvSelect();
+  renderKtvList();
+  if (ST.selectedKtvId && !appKtvs.find(k => k.id === ST.selectedKtvId)) {
+    ST.selectedKtvId = null;
+    renderKtvSelect();
+  }
+}
+
+function renderKtvList() {
+  const container = document.getElementById('ktvSavedList');
+  document.getElementById('ktvSavedCount').textContent = `(${appKtvs.length}个)`;
+  if (appKtvs.length === 0) {
+    container.innerHTML = '<span class="empty" style="padding:16px;display:block">暂无保存的KTV</span>';
+    return;
+  }
+  let html = '';
+  appKtvs.forEach(k => {
+    const stats = countKtvSongs(k);
+    html += `
+      <div class="ktv-card${ST.selectedKtvId === k.id ? ' selected' : ''}" onclick="selectKtvTop('${k.id}')">
+        <span class="ktv-del" onclick="event.stopPropagation();deleteKtv('${k.id}')">✕</span>
+        <div class="ktv-name">${esc(k.name)}</div>
+        <div class="ktv-addr">${esc(k.address || '')}${k.phone ? ' · '+esc(k.phone) : ''}</div>
+        <div class="ktv-stats">可用: ${stats.available}/${stats.total} 首${stats.unavailable > 0 ? ` (${stats.unavailable}首不可用)` : ''}</div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function countKtvSongs(ktv) {
+  if (!ST.currentPlaylistId) return { total: 0, available: 0, unavailable: 0 };
+  const pl = appData.playlists.find(p => p.id === ST.currentPlaylistId);
+  const songs = (pl && pl.songs) || [];
+  const avail = (ktv.availability && ktv.availability[ST.currentPlaylistId]) || {};
+  const unavailable = Object.keys(avail).filter(sid => avail[sid] === false).length;
+  return { total: songs.length, available: songs.length - unavailable, unavailable };
+}
+
+function selectKtvTop(id) {
+  ST.selectedKtvId = ST.selectedKtvId === id ? null : id;
+  renderKtvSelect();
+  renderKtvList();
+  renderRightPanel();
+}
+
+async function toggleKtvSongRow(songId, currentlyAvailable) {
+  if (!ST.selectedKtvId || !ST.currentPlaylistId) return;
+  const ktv = appKtvs.find(k => k.id === ST.selectedKtvId);
+  if (!ktv) return;
+  await api(`/api/ktv/${ST.selectedKtvId}/availability`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playlistId: ST.currentPlaylistId, songId, available: !currentlyAvailable })
+  });
+  if (!ktv.availability) ktv.availability = {};
+  if (!ktv.availability[ST.currentPlaylistId]) ktv.availability[ST.currentPlaylistId] = {};
+  if (!currentlyAvailable) { delete ktv.availability[ST.currentPlaylistId][songId]; }
+  else { ktv.availability[ST.currentPlaylistId][songId] = false; }
+  renderRightPanel();
+  renderKtvList();
+}
+
+async function markSung(songId, decrement) {
+  if (!ST.selectedKtvId) return;
+  const ktv = appKtvs.find(k => k.id === ST.selectedKtvId);
+  if (!ktv) return;
+  const body = { songId };
+  if (decrement) body.decrement = true;
+  const res = await api(`/api/ktv/${ST.selectedKtvId}/sung`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (ktv) { ktv.songHistory = res.songHistory; }
+  renderRightPanel();
+}
+
+function renderKtvResultItem(k) {
+  return `
+    <div class="result-item">
+      <div class="result-info">
+        <div class="name">${esc(k.name)} ${k.rating ? '<span style="color:#faad14;font-size:11px">★'+esc(k.rating)+'</span>' : ''}</div>
+        <div class="meta">${esc(k.address || '')}${k.phone ? ' · '+esc(k.phone) : ''}</div>
+      </div>
+      <button class="addBtn" onclick="saveKtvFromSearch('${esc(k.id)}','${esc(k.name)}','${esc(k.address||'')}',${k.lat},${k.lng},'${esc(k.phone||'')}','${esc(k.rating||'')}','${esc(k.baiduUid||'')}')">+ 添加</button>
+    </div>`;
+}
+
+async function doKtvSearch(reset) {
+  const city = document.getElementById('ktvCity').value.trim() || '全国';
+  const keywords = document.getElementById('ktvKeywords').value.trim();
+  if (!keywords) return;
+  const container = document.getElementById('ktvSearchResults');
+  if (reset !== false) {
+    ktvSearchState.city = city;
+    ktvSearchState.keywords = keywords;
+    ktvSearchState.page = 0;
+    ktvSearchState.hasMore = false;
+    ktvSearchState.loading = false;
+    container.innerHTML = '<div class="loading">搜索中...</div>';
+  }
+  ktvSearchState.loading = true;
+  try {
+    const data = await api(`/api/ktv/search?city=${encodeURIComponent(city)}&keywords=${encodeURIComponent(keywords)}&page=${ktvSearchState.page}&limit=20`);
+    ktvSearchState.loading = false;
+    if (data.error) {
+      if (ktvSearchState.page === 0) container.innerHTML = `<div class="empty">${esc(data.error)}</div>`;
+      return;
+    }
+    ktvSearchState.hasMore = data.hasMore || false;
+    if (!data.ktvs || data.ktvs.length === 0) {
+      if (ktvSearchState.page === 0) container.innerHTML = '<div class="empty">未找到KTV，试试换城市或关键词</div>';
+      return;
+    }
+    let html = '';
+    if (ktvSearchState.page === 0) {
+      html = data.ktvs.map(renderKtvResultItem).join('');
+      if (ktvSearchState.hasMore) html += '<div class="loading" id="ktvLoadMoreSentinel">滚动加载更多...</div>';
+    } else {
+      const sentinel = document.getElementById('ktvLoadMoreSentinel');
+      if (sentinel) sentinel.remove();
+      html = data.ktvs.map(renderKtvResultItem).join('');
+      if (ktvSearchState.hasMore) html += '<div class="loading" id="ktvLoadMoreSentinel">滚动加载更多...</div>';
+      container.insertAdjacentHTML('beforeend', html);
+      return;
+    }
+    container.innerHTML = html;
+  } catch(e) {
+    ktvSearchState.loading = false;
+    if (ktvSearchState.page === 0) container.innerHTML = `<div class="empty">搜索失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function loadMoreKtv() {
+  if (ktvSearchState.loading || !ktvSearchState.hasMore || ST.tab !== 'ktv') return;
+  ktvSearchState.page++;
+  doKtvSearch(false);
+}
+
+async function saveKtvFromSearch(id, name, address, lat, lng, phone, rating, baiduUid) {
+  await api('/api/ktv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address, lat, lng, phone, rating, baiduUid, source: 'baidu' })
+  });
+  await loadKtvs();
+}
+
+async function saveManualKtv() {
+  const name = document.getElementById('ktvManName').value.trim();
+  if (!name) return;
+  await api('/api/ktv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name, address: document.getElementById('ktvManAddr').value.trim(),
+      phone: document.getElementById('ktvManPhone').value.trim(), source: 'manual'
+    })
+  });
+  document.getElementById('ktvManName').value = '';
+  document.getElementById('ktvManAddr').value = '';
+  document.getElementById('ktvManPhone').value = '';
+  await loadKtvs();
+}
+
+async function deleteKtv(id) {
+  if (!confirm('确定删除这个KTV？')) return;
+  if (ST.selectedKtvId === id) { ST.selectedKtvId = null; document.getElementById('delKtvBtn').style.display = 'none'; renderKtvSelect(); }
+  await api(`/api/ktv/${id}`, { method: 'DELETE' });
+  await loadKtvs();
+}
+
+// --- Init ---
+async function initLoad() {
+  await loadData();
+  await loadKtvs();
+}
+initLoad();
+</script>
+</body>
+</html>

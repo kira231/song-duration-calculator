@@ -1,0 +1,12 @@
+{
+  "name": "song-duration-calculator",
+  "version": "1.0.0",
+  "description": "歌曲时长计算器",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
